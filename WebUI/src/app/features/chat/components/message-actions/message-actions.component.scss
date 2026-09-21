@@ -1,0 +1,74 @@
+:host {
+    display: block;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    margin-top: var(--s-2);
+}
+
+.action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--c-text-muted);
+    transition: background var(--t-fast), color var(--t-fast);
+
+    &:hover:not(:disabled) {
+        background: var(--c-accent-muted);
+        color: var(--c-accent);
+    }
+
+    &:disabled {
+        opacity: 0.35;
+        cursor: default;
+    }
+}
+
+.action--selected,
+.action--confirmed {
+    background: var(--c-accent-muted);
+    color: var(--c-accent);
+    opacity: 1;
+}
+
+/* A selected rating button is disabled but must not read as unavailable. */
+.action--selected:disabled {
+    opacity: 1;
+}
+
+.actions__divider {
+    width: 1px;
+    height: 16px;
+    margin: 0 var(--s-1);
+    background: var(--c-border);
+}
+
+.actions__sources {
+    padding: var(--s-1) var(--s-2);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: none;
+    font-size: var(--fs-meta);
+    color: var(--c-text-muted);
+    transition: color var(--t-fast);
+
+    &:hover,
+    &--open {
+        color: var(--c-accent);
+    }
+}
+
+.actions__error {
+    margin-left: var(--s-2);
+    font-size: var(--fs-meta);
+    color: var(--c-accent);
+}

@@ -1,0 +1,359 @@
+import { Injectable, computed, signal } from '@angular/core';
+import { environment } from '../../../environments/environment';
+import {
+    Message,
+    MessageRole,
+    ToolEvent
+} from '../../features/chat/models/message.model';
+import { FeedbackRating } from '../../features/chat/models/feedback.model';
+import { Source } from '../../features/chat/models/source.model';
+import { SseDecoder, parsePayload } from './sse';
+
+/** Shape of one turn as the backend expects it in the request body. */
+interface HistoryTurn {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
+/**
+ * Owns the conversation.
+ *
+ * Streams over `fetch` + `ReadableStream` rather than `EventSource` because the
+ * message and history have to go up in a POST body, which `EventSource` cannot do.
+ */
+@Injectable({ providedIn: 'root' })
+export class ChatService {
+    private readonly _messages = signal<Message[]>([]);
+    readonly messages = this._messages.asReadonly();
+
+    readonly isStreaming = computed(() => this._messages().some(m => m.status === 'streaming'));
+    readonly isEmpty = computed(() => this._messages().length === 0);
+
+    private readonly endpoint = `${environment.apiUrl}/chat`;
+    private controller: AbortController | null = null;
+
+    async sendMessage(text: string): Promise<void> {
+        const trimmed = text.trim();
+        if (!trimmed || this.isStreaming()) return;
+
+        // History must be captured before the new turn is appended.
+        const history = this.getHistory();
+
+        this._messages.update(messages => [
+            ...messages,
+            createMessage('user', trimmed, 'complete'),
+            createMessage('agent', '', 'streaming')
+        ]);
+
+        const agentId = this._messages()[this._messages().length - 1].id;
+        await this.stream(agentId, trimmed, history);
+    }
+
+    /**
+     * Drops a failed agent turn and re-sends the user message that preceded it.
+     * Backs the inline retry shown on the error bubble.
+     */
+    async retry(): Promise<void> {
+        const messages = this._messages();
+        const last = messages[messages.length - 1];
+        if (!last || last.role !== 'agent' || last.status !== 'error') return;
+
+        const prompt = messages[messages.length - 2];
+        if (!prompt || prompt.role !== 'user') return;
+
+        this._messages.set(messages.slice(0, -2));
+        await this.sendMessage(prompt.content);
+    }
+
+    /** Conversation so far, formatted for the next request body. */
+    getHistory(): HistoryTurn[] {
+        return this._messages()
+            .filter(m => m.status === 'complete' && m.content.trim().length > 0)
+            .map(m => ({
+                role: m.role === 'agent' ? ('assistant' as const) : ('user' as const),
+                content: m.content
+            }));
+    }
+
+    setFeedback(messageId: string, rating: FeedbackRating | null): void {
+        this.patch(messageId, message => ({ ...message, feedback: rating }));
+    }
+
+    clear(): void {
+        this.controller?.abort();
+        this.controller = null;
+        this._messages.set([]);
+    }
+
+    private async stream(agentId: string, message: string, history: HistoryTurn[]): Promise<void> {
+        this.controller?.abort();
+        const controller = new AbortController();
+        this.controller = controller;
+
+        try {
+            const response = await fetch(this.endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'text/event-stream'
+                },
+                body: JSON.stringify({ message, history }),
+                signal: controller.signal
+            });
+
+            if (!response.ok) throw new Error(`Request failed (${response.status})`);
+            if (!response.body) throw new Error('Response carried no body');
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            const sse = new SseDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                for (const event of sse.push(decoder.decode(value, { stream: true }))) {
+                    this.handleEvent(agentId, event.type, event.data);
+                }
+            }
+            for (const event of sse.flush()) {
+                this.handleEvent(agentId, event.type, event.data);
+            }
+
+            this.finish(agentId);
+        } catch (error) {
+            if (controller.signal.aborted) return;
+            this.fail(agentId, error);
+        } finally {
+            if (this.controller === controller) this.controller = null;
+        }
+    }
+
+    private handleEvent(agentId: string, type: string, data: string): void {
+        if (data === '[DONE]') {
+            this.finish(agentId);
+            return;
+        }
+        const payload = parsePayload(data);
+
+        switch (type) {
+            case 'token':
+                this.appendToken(agentId, readToken(payload));
+                break;
+            case 'tool_start':
+                this.startTool(agentId, payload);
+                break;
+            case 'tool_end':
+                this.endTool(agentId, payload);
+                break;
+            case 'sources':
+                this.attachTrailingSources(agentId, readSources(payload));
+                break;
+            case 'error':
+                this.fail(agentId, new Error(readMessage(payload) ?? 'The agent hit an error.'));
+                break;
+            case 'done':
+                this.finish(agentId);
+                break;
+            default:
+                // An unrecognised event type is ignored so a backend addition
+                // never breaks an already-deployed frontend.
+                break;
+        }
+    }
+
+    private appendToken(agentId: string, token: string): void {
+        if (!token) return;
+        this.patch(agentId, message => ({ ...message, content: message.content + token }));
+    }
+
+    private startTool(agentId: string, payload: unknown): void {
+        const tool = readTool(payload);
+        if (!tool) return;
+        const id = readId(payload) ?? `${tool}-${Date.now()}`;
+
+        this.patch(agentId, message => ({
+            ...message,
+            toolEvents: [...message.toolEvents, { id, tool, status: 'running', sources: [] }]
+        }));
+    }
+
+    private endTool(agentId: string, payload: unknown): void {
+        const tool = readTool(payload);
+        const id = readId(payload);
+        const sources = readSources(payload);
+
+        this.patch(agentId, message => {
+            // Match on the call id when the backend sends one, otherwise close
+            // the most recent still-running event for that tool.
+            const index = findOpenTool(message.toolEvents, id, tool);
+            if (index === -1) {
+                // A `tool_end` with no matching start still deserves its sources.
+                if (!sources.length) return message;
+                return {
+                    ...message,
+                    toolEvents: [
+                        ...message.toolEvents,
+                        { id: id ?? `${tool ?? 'tool'}-${Date.now()}`, tool: tool ?? 'unknown', status: 'done', sources }
+                    ]
+                };
+            }
+
+            const toolEvents = [...message.toolEvents];
+            toolEvents[index] = { ...toolEvents[index], status: 'done', sources };
+            return { ...message, toolEvents };
+        });
+    }
+
+    /**
+     * The optional end-of-stream `sources` event carries the full deduplicated
+     * list for the message. It is parked on a synthetic done event so the
+     * sources panel picks it up through the same path as tool sources.
+     */
+    private attachTrailingSources(agentId: string, sources: Source[]): void {
+        if (!sources.length) return;
+        this.patch(agentId, message => ({
+            ...message,
+            toolEvents: [
+                ...message.toolEvents,
+                { id: 'stream-sources', tool: 'summary', status: 'done', sources }
+            ]
+        }));
+    }
+
+    private finish(agentId: string): void {
+        this.patch(agentId, message => {
+            if (message.status !== 'streaming') return message;
+            return {
+                ...message,
+                status: message.content.trim() ? 'complete' : 'error',
+                error: message.content.trim() ? undefined : 'The agent returned an empty response.',
+                toolEvents: message.toolEvents.map(event =>
+                    event.status === 'running' ? { ...event, status: 'done' as const } : event
+                )
+            };
+        });
+    }
+
+    private fail(agentId: string, error: unknown): void {
+        const reason = error instanceof Error ? error.message : 'Something went wrong.';
+        this.patch(agentId, message => ({ ...message, status: 'error', error: reason }));
+    }
+
+    private patch(id: string, update: (message: Message) => Message): void {
+        this._messages.update(messages =>
+            messages.map(message => (message.id === id ? update(message) : message))
+        );
+    }
+}
+
+function createMessage(role: MessageRole, content: string, status: Message['status']): Message {
+    return {
+        id: crypto.randomUUID(),
+        role,
+        content,
+        status,
+        timestamp: new Date(),
+        toolEvents: [],
+        feedback: null
+    };
+}
+
+function findOpenTool(events: ToolEvent[], id: string | null, tool: string | null): number {
+    if (id) {
+        const byId = events.findIndex(event => event.id === id);
+        if (byId !== -1) return byId;
+    }
+    for (let i = events.length - 1; i >= 0; i--) {
+        if (events[i].status === 'running' && (!tool || events[i].tool === tool)) return i;
+    }
+    return -1;
+}
+
+function asRecord(payload: unknown): Record<string, unknown> | null {
+    return payload !== null && typeof payload === 'object' ? (payload as Record<string, unknown>) : null;
+}
+
+/** Accepts `{content}`, `{token}`, `{text}`, or a bare string token. */
+function readToken(payload: unknown): string {
+    if (typeof payload === 'string') return payload;
+    if (typeof payload === 'number') return String(payload);
+    const record = asRecord(payload);
+    if (!record) return '';
+    for (const key of ['content', 'token', 'text', 'delta']) {
+        const value = record[key];
+        if (typeof value === 'string') return value;
+    }
+    return '';
+}
+
+function readTool(payload: unknown): string | null {
+    if (typeof payload === 'string') return payload;
+    const record = asRecord(payload);
+    if (!record) return null;
+    for (const key of ['tool', 'name', 'tool_name']) {
+        const value = record[key];
+        if (typeof value === 'string') return value;
+    }
+    return null;
+}
+
+function readId(payload: unknown): string | null {
+    const record = asRecord(payload);
+    if (!record) return null;
+    for (const key of ['id', 'tool_call_id', 'call_id']) {
+        const value = record[key];
+        if (typeof value === 'string') return value;
+    }
+    return null;
+}
+
+function readMessage(payload: unknown): string | null {
+    if (typeof payload === 'string') return payload;
+    const record = asRecord(payload);
+    if (!record) return null;
+    for (const key of ['message', 'detail', 'error']) {
+        const value = record[key];
+        if (typeof value === 'string') return value;
+    }
+    return null;
+}
+
+function readSources(payload: unknown): Source[] {
+    const raw = Array.isArray(payload) ? payload : asRecord(payload)?.['sources'];
+    if (!Array.isArray(raw)) return [];
+
+    return raw.flatMap((entry): Source[] => {
+        const record = asRecord(entry);
+        if (!record) return [];
+
+        const url = typeof record['url'] === 'string' ? record['url'] : undefined;
+        const excerpt =
+            typeof record['excerpt'] === 'string'
+                ? record['excerpt']
+                : typeof record['content'] === 'string'
+                  ? record['content']
+                  : typeof record['text'] === 'string'
+                    ? record['text']
+                    : undefined;
+
+        // Trust an explicit `type` when the backend sends one; otherwise the
+        // presence of a URL is what distinguishes a page from a KB chunk.
+        const declared = record['type'];
+        const type = declared === 'url' || declared === 'document' ? declared : url ? 'url' : 'document';
+
+        const label =
+            typeof record['label'] === 'string'
+                ? record['label']
+                : typeof record['title'] === 'string'
+                  ? record['title']
+                  : typeof record['name'] === 'string'
+                    ? record['name']
+                    : type === 'url'
+                      ? (url ?? 'Source')
+                      : 'Knowledge base';
+
+        if (type === 'url' && !url) return [];
+        if (type === 'document' && !excerpt) return [{ type, label }];
+        return [{ type, label, url, excerpt }];
+    });
+}

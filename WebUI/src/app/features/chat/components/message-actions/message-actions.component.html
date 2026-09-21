@@ -1,0 +1,59 @@
+<div class="actions">
+    <button
+        type="button"
+        class="action"
+        [class.action--selected]="rating() === 'up'"
+        [disabled]="ratingLocked() && rating() !== 'up'"
+        [attr.aria-pressed]="rating() === 'up'"
+        aria-label="Helpful"
+        (click)="rate('up')">
+        <svg lucideThumbsUp [size]="15"></svg>
+    </button>
+
+    <button
+        type="button"
+        class="action"
+        [class.action--selected]="rating() === 'down'"
+        [disabled]="ratingLocked() && rating() !== 'down'"
+        [attr.aria-pressed]="rating() === 'down'"
+        aria-label="Not helpful"
+        (click)="rate('down')">
+        <svg lucideThumbsDown [size]="15"></svg>
+    </button>
+
+    <span class="actions__divider" aria-hidden="true"></span>
+
+    <button
+        type="button"
+        class="action"
+        [class.action--confirmed]="copied()"
+        [attr.aria-label]="copied() ? 'Copied' : 'Copy answer'"
+        (click)="copy()">
+        @if (copied()) {
+        <svg lucideCheck [size]="15"></svg>
+        } @else {
+        <svg lucideCopy [size]="15"></svg>
+        }
+    </button>
+
+    @if (sources().length) {
+    <button
+        type="button"
+        class="actions__sources"
+        [class.actions__sources--open]="sourcesOpen()"
+        [attr.aria-expanded]="sourcesOpen()"
+        (click)="toggleSources()">
+        {{ sources().length }} {{ sources().length === 1 ? 'source' : 'sources' }}
+    </button>
+    }
+
+    @if (feedbackFailed()) {
+    <span class="actions__error" role="alert">Couldn't send that — try again.</span>
+    } @else if (copyFailed()) {
+    <span class="actions__error" role="alert">Couldn't copy.</span>
+    }
+</div>
+
+@if (sourcesOpen()) {
+<app-sources-panel [sources]="sources()" (close)="closeSources()" />
+}

@@ -1,0 +1,20 @@
+@if (running(); as event) {
+<div
+    class="tool"
+    [class.tool--escalation]="event.tool === 'escalate_to_human'"
+    role="status"
+    aria-live="polite">
+    @switch (event.tool) {
+    @case ('scrape_cadre_website') {
+    <svg lucideGlobe class="tool__icon" [size]="14"></svg>
+    }
+    @case ('escalate_to_human') {
+    <svg lucideLifeBuoy class="tool__icon" [size]="14"></svg>
+    }
+    @default {
+    <svg lucideBookOpen class="tool__icon" [size]="14"></svg>
+    }
+    }
+    <span class="tool__label">{{ label() }}</span>
+</div>
+}

@@ -1,0 +1,49 @@
+<div class="chat">
+    <header class="chat__header">
+        <span class="chat__brand">Cadre AI</span>
+        <span class="chat__status" [class.chat__status--busy]="isStreaming()" aria-live="polite">
+            <span class="chat__status-dot" aria-hidden="true"></span>
+            {{ status() }}
+        </span>
+    </header>
+
+    <main #scroller class="chat__scroll" (scroll)="onScroll()" tabindex="-1">
+        <div class="chat__content">
+            @if (isEmpty()) {
+            <section class="empty">
+                <h1 class="empty__title">How can we help?</h1>
+                <p class="empty__lede">
+                    Ask about Cadre AI's work, industries, or approach — answers come straight from
+                    our own material.
+                </p>
+                <ul class="empty__suggestions">
+                    @for (prompt of suggestions; track prompt) {
+                    <li>
+                        <button type="button" class="empty__chip" (click)="onSend(prompt)">
+                            {{ prompt }}
+                        </button>
+                    </li>
+                    }
+                </ul>
+            </section>
+            } @else {
+            <ol class="chat__list">
+                @for (message of messages(); track message.id) {
+                <li class="chat__item">
+                    <app-message-bubble [message]="message" (retry)="onRetry()" />
+                </li>
+                }
+            </ol>
+            }
+        </div>
+    </main>
+
+    <footer class="chat__footer">
+        <div class="chat__content">
+            <app-input-bar [disabled]="isStreaming()" (send)="onSend($event)" />
+            <p class="chat__disclaimer">
+                Cadre AI can make mistakes. Check important details with the team.
+            </p>
+        </div>
+    </footer>
+</div>

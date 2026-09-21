@@ -1,0 +1,44 @@
+:host {
+    display: block;
+}
+
+.tool {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-bottom: var(--s-2);
+    padding: var(--s-1) var(--s-3);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-pill);
+    background: var(--c-surface);
+    color: var(--c-text-muted);
+    font-size: var(--fs-meta);
+    line-height: var(--lh-tight);
+}
+
+.tool__icon {
+    flex-shrink: 0;
+    color: var(--c-accent);
+    animation: breathe 1.6s ease-in-out infinite;
+}
+
+/* Escalation stays muted — it is a handoff, not a failure. */
+.tool--escalation .tool__icon {
+    color: var(--c-escalation);
+}
+
+@keyframes breathe {
+    0%,
+    100% {
+        opacity: 0.45;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tool__icon {
+        animation: none;
+    }
+}

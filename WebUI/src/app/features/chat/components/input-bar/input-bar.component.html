@@ -1,0 +1,16 @@
+<form class="composer" (submit)="$event.preventDefault(); submit()">
+    <textarea
+        #textarea
+        class="composer__input"
+        rows="1"
+        [value]="value()"
+        [disabled]="disabled()"
+        [attr.placeholder]="placeholder()"
+        [attr.aria-label]="placeholder()"
+        (input)="onInput($event)"
+        (keydown)="onKeydown($event)"></textarea>
+
+    <button type="submit" class="composer__send" [disabled]="!canSend()" aria-label="Send message">
+        <svg lucideArrowUp [size]="17"></svg>
+    </button>
+</form>

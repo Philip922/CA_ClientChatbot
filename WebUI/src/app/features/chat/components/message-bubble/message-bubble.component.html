@@ -1,0 +1,30 @@
+<div class="turn" [class.turn--user]="isUser()">
+    @if (!isUser() && isStreaming()) {
+    <app-tool-indicator [events]="message().toolEvents" />
+    }
+
+    @if (hasError()) {
+    <div class="error" role="alert">
+        <svg lucideTriangleAlert class="error__icon" [size]="15"></svg>
+        <span class="error__text">{{ message().error }}</span>
+        <button type="button" class="error__retry" (click)="retry.emit()">
+            <svg lucideRotateCw [size]="14"></svg>
+            Try again
+        </button>
+    </div>
+    } @else {
+    <div class="bubble" [class.bubble--user]="isUser()">
+        @if (isUser()) {
+        <p class="bubble__text">{{ message().content }}</p>
+        } @else if (isAwaitingFirstToken()) {
+        <app-typing-indicator />
+        } @else {
+        <div class="bubble__markdown" [innerHTML]="message().content | markdown"></div>
+        }
+    </div>
+
+    @if (!isUser() && isComplete()) {
+    <app-message-actions [message]="message()" />
+    }
+    }
+</div>

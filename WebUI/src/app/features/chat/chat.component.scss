@@ -1,0 +1,166 @@
+:host {
+    display: block;
+    height: 100%;
+}
+
+.chat {
+    display: flex;
+    flex-direction: column;
+    /* dvh rather than vh so the mobile URL bar does not clip the composer. */
+    height: 100dvh;
+    background: var(--c-background);
+}
+
+.chat__content {
+    width: 100%;
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+}
+
+/* ── Header ────────────────────────────────────────────────────────────── */
+
+.chat__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    height: var(--header-height);
+    padding: 0 var(--s-5);
+    border-bottom: 1px solid var(--c-border);
+    background: var(--c-background);
+}
+
+.chat__brand {
+    font-size: var(--fs-title);
+    font-weight: var(--fw-semibold);
+    letter-spacing: -0.01em;
+}
+
+.chat__status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: var(--fs-meta);
+    color: var(--c-text-muted);
+}
+
+.chat__status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--c-text-muted);
+}
+
+.chat__status--busy .chat__status-dot {
+    background: var(--c-accent);
+}
+
+/* ── Scrolling message list ────────────────────────────────────────────── */
+
+.chat__scroll {
+    flex: 1;
+    min-height: 0;
+    padding: var(--s-5) var(--s-5) var(--s-6);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    outline: none;
+}
+
+.chat__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* ── Empty state ───────────────────────────────────────────────────────── */
+
+.empty {
+    padding: var(--s-7) 0 0;
+}
+
+.empty__title {
+    margin: 0 0 var(--s-2);
+    font-size: 1.75rem;
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-tight);
+    letter-spacing: -0.02em;
+}
+
+.empty__lede {
+    max-width: 46ch;
+    margin: 0 0 var(--s-5);
+    color: var(--c-text-muted);
+}
+
+.empty__suggestions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.empty__chip {
+    padding: var(--s-2) var(--s-4);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-pill);
+    background: var(--c-surface);
+    font-size: var(--fs-meta);
+    color: var(--c-text);
+    text-align: left;
+    transition: border-color var(--t-fast), color var(--t-fast);
+
+    &:hover {
+        border-color: var(--c-accent);
+        color: var(--c-accent);
+    }
+}
+
+/* ── Composer ──────────────────────────────────────────────────────────── */
+
+.chat__footer {
+    flex-shrink: 0;
+    padding: var(--s-3) var(--s-5) var(--s-4);
+    border-top: 1px solid var(--c-border);
+    background: var(--c-background);
+    /* Lifts the composer above the software keyboard where the browser
+       exposes its height; resolves to 0px elsewhere. */
+    padding-bottom: calc(var(--s-4) + env(keyboard-inset-height, 0px));
+}
+
+.chat__disclaimer {
+    margin: var(--s-2) 0 0;
+    font-size: var(--fs-meta);
+    color: var(--c-text-muted);
+    text-align: center;
+}
+
+/* ── Mobile ────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+    .chat__header {
+        padding: 0 var(--s-4);
+    }
+
+    .chat__scroll {
+        padding: var(--s-4) var(--s-4) var(--s-5);
+    }
+
+    .chat__footer {
+        padding-left: var(--s-4);
+        padding-right: var(--s-4);
+    }
+
+    .empty {
+        padding-top: var(--s-5);
+    }
+
+    .empty__title {
+        font-size: 1.5rem;
+    }
+}

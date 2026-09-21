@@ -1,0 +1,64 @@
+/**
+ * Cadre AI design tokens.
+ *
+ * Matched to cadreai.com: warm cream ground, near-black type, a single
+ * red-coral accent. No dark mode — the widget should read as part of the
+ * site, and the site has one theme.
+ */
+:root {
+    /* Surfaces */
+    --c-background: #f2efe9;
+    --c-surface: #fdfcfa;
+    --c-surface-user: #1a1a1a;
+    --c-border: #e0dad1;
+
+    /* Accent */
+    --c-accent: #c0392b;
+    --c-accent-hover: #a93226;
+    --c-accent-muted: #f5e6e4;
+
+    /* Type */
+    --c-text: #1a1a1a;
+    --c-text-inverse: #f2efe9;
+    --c-text-muted: #8a7f75;
+
+    /* Semantic — both intentionally reuse existing hues rather than
+       introducing green or amber, which are off-brand. */
+    --c-success: #c0392b;
+    --c-escalation: #8a7f75;
+
+    /* Spacing scale */
+    --s-1: 0.25rem;
+    --s-2: 0.5rem;
+    --s-3: 0.75rem;
+    --s-4: 1rem;
+    --s-5: 1.5rem;
+    --s-6: 2rem;
+    --s-7: 3rem;
+
+    /* Radii */
+    --r-sm: 6px;
+    --r-md: 10px;
+    --r-lg: 16px;
+    --r-pill: 999px;
+
+    /* Elevation — kept very soft; the brand is flat, not material */
+    --shadow-sm: 0 1px 2px rgba(26, 26, 26, 0.04);
+    --shadow-md: 0 4px 16px rgba(26, 26, 26, 0.07);
+
+    /* Layout */
+    --header-height: 56px;
+    --input-bar-height: 72px;
+    --content-max-width: 760px;
+
+    /* Motion */
+    --t-fast: 120ms ease;
+    --t-base: 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --t-fast: 1ms linear;
+        --t-base: 1ms linear;
+    }
+}

@@ -1,0 +1,39 @@
+<section
+    class="panel"
+    role="group"
+    aria-label="Sources for this answer"
+    tabindex="-1"
+    (keydown.escape)="onEscape()">
+    <h3 class="panel__title">Sources</h3>
+
+    <ul class="panel__list">
+        @for (source of sources(); track $index) {
+        <li class="source">
+            @if (source.type === 'url') {
+            <svg lucideLink class="source__icon" [size]="14"></svg>
+            <div class="source__body">
+                <a class="source__label" [href]="source.url" target="_blank" rel="noopener noreferrer">
+                    {{ source.label }}
+                </a>
+                <span class="source__meta">{{ domain(source) }}</span>
+            </div>
+            } @else {
+            <svg lucideFileText class="source__icon" [size]="14"></svg>
+            <div class="source__body">
+                <span class="source__label">{{ source.label }}</span>
+                @if (source.excerpt) {
+                <p #excerpt class="source__excerpt" [class.source__excerpt--clamped]="!isExpanded($index)">
+                    {{ source.excerpt }}
+                </p>
+                @if (canExpand($index) || isExpanded($index)) {
+                <button type="button" class="source__more" (click)="toggle($index)">
+                    {{ isExpanded($index) ? 'Show less' : 'Show more' }}
+                </button>
+                }
+                }
+            </div>
+            }
+        </li>
+        }
+    </ul>
+</section>
