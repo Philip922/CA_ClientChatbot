@@ -228,10 +228,12 @@ through.
    | `AWS_LAMBDA_EXEC_WRAPPER` | `/opt/bootstrap` |
    | `AWS_LWA_INVOKE_MODE` | `response_stream` |
    | `PORT` | `8080` |
-5. Create a Function URL: auth **NONE**, invoke mode **RESPONSE_STREAM**, CORS
-   allow-origin set to the CloudFront domain (`*` while developing).
-6. Set `CORS_ALLOW_ORIGIN` to the same value — the Function URL config handles
-   preflight, the FastAPI middleware puts headers on the streaming response.
+5. Create a Function URL: auth **NONE**, invoke mode **RESPONSE_STREAM**, and
+   **no CORS configuration**.
+6. Set `CORS_ALLOW_ORIGIN` to the CloudFront domain (`*` while developing). The
+   FastAPI middleware answers preflight and puts headers on every response.
+   Enabling CORS on the Function URL as well duplicates
+   `Access-Control-Allow-Origin`, which browsers reject as "Failed to fetch".
 
 Verify against the live URL:
 

@@ -26,8 +26,10 @@ logger = logging.getLogger("cadre.chat")
 
 app = FastAPI(title="Cadre AI Chatbot", version="1.0.0")
 
-# Layer 2 of the CORS strategy: the Function URL config handles preflight, this
-# puts the headers on the streaming response itself.
+# The only CORS layer: it answers preflight and puts the headers on the
+# streaming response. Leave CORS off in the Function URL config — it adds its
+# own headers to every response, and a duplicated Access-Control-Allow-Origin
+# makes browsers reject the request.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[get_settings().cors_allow_origin],
