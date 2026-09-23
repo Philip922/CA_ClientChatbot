@@ -155,14 +155,21 @@ export class ChatService {
                 if (done) break;
                 armWatchdog();
                 for (const event of sse.push(decoder.decode(value, { stream: true }))) {
-                    this.handleEvent(agentId, event.type, event.data);
+                    if (this.handleEvent(agentId, event.type, event.data)) {
+                        // The reply is settled; don't wait on the server to close the socket.
+                        reader.cancel().catch(() => {});
+                        return;
+                    }
                 }
             }
             for (const event of sse.flush()) {
-                this.handleEvent(agentId, event.type, event.data);
+                if (this.handleEvent(agentId, event.type, event.data)) return;
             }
 
-            this.finish(agentId);
+            // The backend always ends with `[DONE]`, so a stream that closes without
+            // one was cut off (Lambda timeout, dropped connection). Showing the partial
+            // text as a finished answer would hide that from the user.
+            throw new Error('The connection dropped before the answer finished. Please try again.');
         } catch (error) {
             const reason: unknown = controller.signal.reason;
             if (reason instanceof StreamTimeoutError) {
@@ -178,10 +185,11 @@ export class ChatService {
         }
     }
 
-    private handleEvent(agentId: string, type: string, data: string): void {
+    /** Applies one SSE event. Returns true when the event ends the stream. */
+    private handleEvent(agentId: string, type: string, data: string): boolean {
         if (data === '[DONE]') {
             this.finish(agentId);
-            return;
+            return true;
         }
         const payload = parsePayload(data);
 
@@ -200,15 +208,16 @@ export class ChatService {
                 break;
             case 'error':
                 this.fail(agentId, new Error(readMessage(payload) ?? 'The agent hit an error.'));
-                break;
+                return true;
             case 'done':
                 this.finish(agentId);
-                break;
+                return true;
             default:
                 // An unrecognised event type is ignored so a backend addition
                 // never breaks an already-deployed frontend.
                 break;
         }
+        return false;
     }
 
     private appendToken(agentId: string, token: string): void {
