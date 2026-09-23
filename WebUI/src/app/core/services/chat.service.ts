@@ -66,6 +66,14 @@ export class ChatService {
     private readonly endpoint = `${environment.apiUrl}/chat`;
     private controller: AbortController | null = null;
 
+    /**
+     * Tokens received since the last frame. Writing each token straight into the
+     * signal would re-parse the whole answer's markdown and replace its DOM once
+     * per token; batching caps that at once per frame however fast tokens arrive.
+     */
+    private pendingTokens: { agentId: string; text: string } | null = null;
+    private flushFrame: number | null = null;
+
     async sendMessage(text: string): Promise<void> {
         const trimmed = text.trim();
         if (!trimmed || this.isStreaming()) return;
@@ -119,6 +127,8 @@ export class ChatService {
      * retryable error instead.
      */
     stop(): void {
+        // Buffered tokens count as received text when deciding what to keep.
+        this.flushTokens();
         const streaming = this._messages().find(m => m.status === 'streaming');
         this.controller?.abort();
         this.controller = null;
@@ -134,6 +144,7 @@ export class ChatService {
     clear(): void {
         this.controller?.abort();
         this.controller = null;
+        this.discardTokens();
         this._messages.set([]);
     }
 
@@ -245,7 +256,28 @@ export class ChatService {
 
     private appendToken(agentId: string, token: string): void {
         if (!token) return;
-        this.patch(agentId, message => ({ ...message, content: message.content + token }));
+        if (this.pendingTokens && this.pendingTokens.agentId !== agentId) this.flushTokens();
+
+        if (this.pendingTokens) {
+            this.pendingTokens.text += token;
+        } else {
+            this.pendingTokens = { agentId, text: token };
+        }
+        this.flushFrame ??= requestAnimationFrame(() => this.flushTokens());
+    }
+
+    /** Writes buffered tokens into their message. Safe to call when nothing is buffered. */
+    private flushTokens(): void {
+        const pending = this.pendingTokens;
+        this.discardTokens();
+        if (!pending) return;
+        this.patch(pending.agentId, message => ({ ...message, content: message.content + pending.text }));
+    }
+
+    private discardTokens(): void {
+        if (this.flushFrame !== null) cancelAnimationFrame(this.flushFrame);
+        this.flushFrame = null;
+        this.pendingTokens = null;
     }
 
     private startTool(agentId: string, payload: unknown): void {
@@ -303,6 +335,8 @@ export class ChatService {
     }
 
     private finish(agentId: string): void {
+        // The empty-response check below must see every token received.
+        this.flushTokens();
         this.patch(agentId, message => {
             if (message.status !== 'streaming') return message;
             return {
@@ -323,6 +357,7 @@ export class ChatService {
     }
 
     private markError(agentId: string, text: string): void {
+        this.flushTokens();
         // A message that already finished (e.g. `[DONE]` arrived but the socket
         // lingered until the watchdog fired) keeps its answer.
         this.patch(agentId, message =>
