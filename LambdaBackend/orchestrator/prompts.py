@@ -73,7 +73,7 @@ def _heading_depth(line: str) -> int:
 
 
 def _substitute(text: str) -> str:
-    """Fill `{booking_link}` / `{website_url}` from configuration.
+    """Fill the URL placeholders (`{booking_link}`, `{website_url}`, ...) from configuration.
 
     Without this the URLs live in two places — the prompt the model reads and
     the environment the code uses — and they drift. The failure is quiet and
@@ -83,8 +83,11 @@ def _substitute(text: str) -> str:
     from config import get_settings
 
     settings = get_settings()
-    return text.replace("{booking_link}", settings.booking_link).replace(
-        "{website_url}", settings.cadre_website_url
+    return (
+        text.replace("{booking_link}", settings.booking_link)
+        .replace("{website_url}", settings.cadre_website_url)
+        .replace("{portal_login_url}", settings.portal_login_url)
+        .replace("{maturity_index_url}", settings.maturity_index_url)
     )
 
 

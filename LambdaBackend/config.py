@@ -58,6 +58,8 @@ class Settings:
 
     # --- Scraper ---
     cadre_website_url: str
+    portal_login_url: str
+    maturity_index_url: str
     scrape_cache_ttl: int
     scrape_max_chars: int
 
@@ -104,6 +106,10 @@ def get_settings() -> Settings:
         max_iterations=_int("MAX_ITERATIONS", 3),
         booking_link=_str("BOOKING_LINK", "https://cadreai.com/book"),
         cadre_website_url=_str("CADRE_WEBSITE_URL", "https://cadreai.com").rstrip("/"),
+        portal_login_url=_str("PORTAL_LOGIN_URL", "https://auth.gocadre.ai"),
+        maturity_index_url=_str(
+            "MATURITY_INDEX_URL", "https://portal.gocadre.ai/ai-maturity-index"
+        ),
         scrape_cache_ttl=_int("SCRAPE_CACHE_TTL", 3600),
         scrape_max_chars=_int("SCRAPE_MAX_CHARS", 4000),
         embedding_backend=_str("EMBEDDING_BACKEND", "hosted").lower(),

@@ -13,7 +13,7 @@ import pytest
 import respx
 from httpx import Response, TimeoutException
 
-from orchestrator.prompts import ESCALATION_REASONS, escalation_templates
+from orchestrator.prompts import ESCALATION_REASONS, escalation_templates, tool_description
 from orchestrator.tools import rag, scraper
 from orchestrator.tools.escalation import build_handoff, escalate_to_human
 from orchestrator.tools.rag import query_knowledge_base
@@ -137,11 +137,11 @@ def test_clean_html_falls_back_to_the_h1_for_a_title():
 
 @respx.mock
 async def test_scraper_returns_text_and_a_url_source():
-    route = respx.get("https://cadreai.test/services").mock(
+    route = respx.get("https://cadreai.test/strategy").mock(
         return_value=Response(200, html=_HTML)
     )
 
-    message = await call(scrape_cadre_website, page="services")
+    message = await call(scrape_cadre_website, page="strategy")
 
     assert route.called
     assert "AI Engineering" in message.content
@@ -149,7 +149,7 @@ async def test_scraper_returns_text_and_a_url_source():
         {
             "type": "url",
             "label": "Cadre AI — Services",
-            "url": "https://cadreai.test/services",
+            "url": "https://cadreai.test/strategy",
         }
     ]
 
@@ -185,17 +185,17 @@ async def test_scraper_refetches_once_the_ttl_expires(monkeypatch):
 
 @respx.mock
 async def test_scraper_caches_per_page_not_globally():
-    services = respx.get("https://cadreai.test/services").mock(
+    strategy = respx.get("https://cadreai.test/strategy").mock(
         return_value=Response(200, html=_HTML)
     )
     industries = respx.get("https://cadreai.test/industries").mock(
         return_value=Response(200, html=_HTML)
     )
 
-    await call(scrape_cadre_website, page="services")
+    await call(scrape_cadre_website, page="strategy")
     await call(scrape_cadre_website, page="industries")
 
-    assert services.called and industries.called
+    assert strategy.called and industries.called
 
 
 @respx.mock
@@ -211,9 +211,9 @@ async def test_scraper_describes_a_404_without_raising():
 
 @respx.mock
 async def test_scraper_describes_a_timeout_without_raising():
-    respx.get("https://cadreai.test/services").mock(side_effect=TimeoutException("slow"))
+    respx.get("https://cadreai.test/strategy").mock(side_effect=TimeoutException("slow"))
 
-    message = await call(scrape_cadre_website, page="services")
+    message = await call(scrape_cadre_website, page="strategy")
 
     assert "Could not reach" in message.content
     assert message.artifact == []
@@ -221,12 +221,12 @@ async def test_scraper_describes_a_timeout_without_raising():
 
 @respx.mock
 async def test_scraper_does_not_cache_a_failure():
-    route = respx.get("https://cadreai.test/services")
+    route = respx.get("https://cadreai.test/strategy")
     route.mock(return_value=Response(500))
-    await call(scrape_cadre_website, page="services")
+    await call(scrape_cadre_website, page="strategy")
 
     route.mock(return_value=Response(200, html=_HTML))
-    message = await call(scrape_cadre_website, page="services")
+    message = await call(scrape_cadre_website, page="strategy")
 
     assert "AI Engineering" in message.content
 
@@ -242,8 +242,12 @@ async def test_scraper_reports_an_empty_page():
     assert "no readable text" in message.content
 
 
-def test_every_page_identifier_maps_to_a_path():
-    assert set(PAGE_PATHS) == {"services", "about", "industries", "case-studies"}
+def test_every_page_identifier_is_offered_to_the_model():
+    # An identifier missing from the description is one the model never picks.
+    description = tool_description("scrape_cadre_website")
+    for page, path in PAGE_PATHS.items():
+        assert f'"{page}"' in description
+        assert path.startswith("/")
 
 
 # --- escalate_to_human ------------------------------------------------------
@@ -296,13 +300,13 @@ async def test_kb_degrades_when_the_index_file_is_corrupt(monkeypatch, tmp_path)
 
 @respx.mock
 async def test_scraper_survives_unparseable_markup(monkeypatch):
-    respx.get("https://cadreai.test/services").mock(
+    respx.get("https://cadreai.test/strategy").mock(
         return_value=Response(200, html="<html><body>ok</body></html>")
     )
     monkeypatch.setattr(
         scraper, "clean_html", lambda *a, **k: (_ for _ in ()).throw(ValueError("boom"))
     )
 
-    message = await call(scrape_cadre_website, page="services")
+    message = await call(scrape_cadre_website, page="strategy")
 
     assert "could not be parsed" in message.content

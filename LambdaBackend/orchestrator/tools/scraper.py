@@ -16,16 +16,51 @@ from orchestrator.prompts import tool_description
 
 logger = logging.getLogger(__name__)
 
-PageName = Literal["services", "about", "industries", "case-studies"]
-
 # The identifier→path map is fixed so the model cannot steer a fetch at an
-# arbitrary URL.
+# arbitrary URL. Every entry must also be listed in the tool description in
+# system_prompts.md, which is what the model reads.
 PAGE_PATHS: dict[str, str] = {
-    "services": "/services",
+    "home": "/",
     "about": "/about",
-    "industries": "/industries",
+    "contact": "/contact",
+    "careers": "/careers",
+    "strategy": "/strategy",
+    "ai-engineering": "/ai-engineering",
+    "agents": "/agents",
+    "leadership-facilitation": "/leadership-facilitation",
+    "ai-transformation-intensive": "/ai-transformation-intensive",
+    "next-generation-education": "/next-generation-education",
     "case-studies": "/case-studies",
+    "departments": "/departments",
+    "departments/customer-success": "/departments/customer-success",
+    "departments/executive-leadership": "/departments/executive-leadership",
+    "departments/finance": "/departments/finance",
+    "departments/legal": "/departments/legal",
+    "departments/marketing": "/departments/marketing",
+    "departments/operations": "/departments/operations",
+    "departments/sales": "/departments/sales",
+    "departments/technology": "/departments/technology",
+    "industries": "/industries",
+    "industries/construction": "/industries/construction",
+    "industries/financial-services": "/industries/financial-services",
+    "industries/hospitality": "/industries/hospitality",
+    "industries/manufacturing-logistics": "/industries/manufacturing-logistics",
+    "industries/mortgage-lending": "/industries/mortgage-lending",
+    "industries/private-equity": "/industries/private-equity",
+    "industries/professional-services": "/industries/professional-services",
+    "industries/real-estate": "/industries/real-estate",
+    "industries/retail-e-commerce": "/industries/retail-e-commerce",
+    "events": "/events",
+    "events/ai-leadership-workshop": "/events/ai-leadership-workshop",
+    "events/bermuda-club-executive-ai-summit": "/events/bermuda-club-executive-ai-summit",
+    "events/pe-ai-value-creation-playbook": "/events/pe-ai-value-creation-playbook",
+    "events/the-executive-ai-conversation": "/events/the-executive-ai-conversation",
+    "articles": "/articles",
+    "ai-2030-podcast": "/ai-2030-podcast",
 }
+
+PageName = Literal[tuple(PAGE_PATHS)]  # type: ignore[valid-type]
+
 
 # Stripped before text extraction — chrome that would otherwise dominate the
 # 4000-character budget with nav links repeated on every page.
@@ -87,7 +122,7 @@ async def scrape_cadre_website(page: PageName) -> tuple[str, list[dict]]:
 
     cached = _CACHE.get(page)
     if cached and cached.expires_at > now:
-        return cached.text, [_source(cached.title, page, url)]
+        return cached.text, [_source(cached.title, url)]
 
     try:
         async with httpx.AsyncClient(
@@ -122,8 +157,8 @@ async def scrape_cadre_website(page: PageName) -> tuple[str, list[dict]]:
     _CACHE[page] = _Cached(
         expires_at=now + settings.scrape_cache_ttl, text=text, title=title
     )
-    return text, [_source(title, page, url)]
+    return text, [_source(title, url)]
 
 
-def _source(title: str, page: str, url: str) -> dict:
-    return {"type": "url", "label": title or f"cadreai.com{PAGE_PATHS[page]}", "url": url}
+def _source(title: str, url: str) -> dict:
+    return {"type": "url", "label": title or url.split("://", 1)[-1], "url": url}

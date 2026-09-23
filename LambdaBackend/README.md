@@ -7,8 +7,10 @@ Function URL.
 Implements [`backend-plan.md`](backend-plan.md). All prompts live in
 [`system_prompts.md`](system_prompts.md) and are parsed from it at runtime — the
 code never restates a prompt, so editing that file is how you change agent
-behaviour. Two placeholders in that file, `{booking_link}` and `{website_url}`,
-are filled from `BOOKING_LINK` and `CADRE_WEBSITE_URL`, so a URL is configured
+behaviour. Its placeholders — `{booking_link}`, `{website_url}`,
+`{portal_login_url}` and `{maturity_index_url}` — are filled from
+`BOOKING_LINK`, `CADRE_WEBSITE_URL`, `PORTAL_LOGIN_URL` and
+`MATURITY_INDEX_URL`, so a URL is configured
 in exactly one place rather than drifting between the prompt and the code. Three things depart from the plan as written; see
 [Deviations](#deviations-from-backend-planmd).
 
@@ -167,6 +169,8 @@ locally. See [`.env.example`](.env.example).
 | `MAX_ITERATIONS` | `3` | Agent loop cap |
 | `BOOKING_LINK` | `https://cadreai.com/book` | |
 | `CADRE_WEBSITE_URL` | `https://cadreai.com` | |
+| `PORTAL_LOGIN_URL` | `https://auth.gocadre.ai` | Portal sign-in, shared by the model, not scraped |
+| `MATURITY_INDEX_URL` | `https://portal.gocadre.ai/ai-maturity-index` | Portal sign-in, shared by the model, not scraped |
 | `SCRAPE_CACHE_TTL` | `3600` | Seconds |
 | `SCRAPE_MAX_CHARS` | `4000` | |
 | `EMBEDDING_BACKEND` | `hosted` | `hosted` or `local` |

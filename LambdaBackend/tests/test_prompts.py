@@ -126,8 +126,15 @@ def test_the_scraper_description_uses_the_configured_site(monkeypatch):
 
     text = tool_description("scrape_cadre_website")
 
-    assert "https://cadre.ai/services" in text
+    assert "https://cadre.ai/strategy" in text
     assert "{website_url}" not in text
+
+
+def test_the_system_prompt_links_both_portal_sign_in_pages():
+    text = orchestrator_system_prompt()
+
+    assert "https://auth.cadreai.test" in text
+    assert "https://portal.cadreai.test/ai-maturity-index" in text
 
 
 def test_no_placeholder_survives_substitution():
@@ -136,6 +143,8 @@ def test_no_placeholder_survives_substitution():
     for text in texts:
         assert "{booking_link}" not in text
         assert "{website_url}" not in text
+        assert "{maturity_index_url}" not in text
+        assert "{portal_login_url}" not in text
 
 
 def test_the_prompt_tracks_a_booking_link_change_within_a_process(monkeypatch):

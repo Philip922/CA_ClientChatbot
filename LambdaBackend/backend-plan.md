@@ -227,8 +227,9 @@ orchestrator can fall back to scraping.
 ### `scrape_cadre_website`
 
 Fetches and parses a specific page from the Cadre AI website. Accepts
-a page identifier from a fixed list: `services`, `about`, `industries`,
-`case-studies`. Maps the identifier to the full URL, fetches the HTML
+a page identifier from a fixed list covering the site's company,
+service, department, industry, case study, event and content pages (the
+full list lives in `PAGE_PATHS` and the tool description). Maps the identifier to the full URL, fetches the HTML
 via `httpx`, strips navigation, footer, scripts, and style tags using
 BeautifulSoup, and returns cleaned plain text capped at 4000 characters.
 Results are cached in a module-level dictionary with a TTL defined by
@@ -237,7 +238,7 @@ populated on every successful fetch. The orchestrator calls this tool
 when the knowledge base returns no results or low-confidence results, or
 when the user asks about something that may have changed recently.
 
-**Inputs:** `page: Literal["services", "about", "industries", "case-studies"]`
+**Inputs:** `page: Literal[...]` — one of the `PAGE_PATHS` keys, e.g. `"strategy"`, `"industries/construction"`
 
 **Returns:** `str` — cleaned page text or an error message
 

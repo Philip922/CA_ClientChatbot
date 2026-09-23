@@ -20,6 +20,8 @@ BASE_ENV = {
     "OPENROUTER_API_KEY": "test-key",
     "MODEL_NAME": "anthropic/claude-sonnet-4-6",
     "CADRE_WEBSITE_URL": "https://cadreai.test",
+    "PORTAL_LOGIN_URL": "https://auth.cadreai.test",
+    "MATURITY_INDEX_URL": "https://portal.cadreai.test/ai-maturity-index",
     "SCRAPE_CACHE_TTL": "3600",
     "MAX_ITERATIONS": "3",
     "EMBEDDING_BACKEND": "hosted",
