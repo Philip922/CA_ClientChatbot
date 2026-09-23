@@ -1,0 +1,15 @@
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# User-provided source documents and the index built from them.
+documents/*
+!documents/.gitkeep
+rag_index.npz
+
+# Build artefacts
+build/
+cadre-lambda.zip

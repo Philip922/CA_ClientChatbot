@@ -1,0 +1,9 @@
+# Local-only: index building and tests. Never packaged into the Lambda zip.
+-r requirements.txt
+
+# Used by scripts/build_index.py --backend local, and by the RAG tests.
+sentence-transformers>=3.3,<6.0
+
+pytest>=8.3,<10.0
+pytest-asyncio>=0.24,<2.0
+respx>=0.21,<0.24
