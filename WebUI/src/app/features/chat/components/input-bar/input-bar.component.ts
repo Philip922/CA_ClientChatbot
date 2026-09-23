@@ -84,6 +84,9 @@ export class InputBarComponent {
         if (!this.canSend()) return;
         this.send.emit(this.value().trim());
         this.value.set('');
+        // The `[value]` binding only reaches the DOM on the next render, so clear
+        // the element now or resize() would measure the text just sent.
+        this.textarea().nativeElement.value = '';
         this.resize();
     }
 
