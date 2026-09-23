@@ -1,9 +1,11 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    DOCUMENT,
     ElementRef,
+    afterRenderEffect,
     computed,
-    effect,
+    inject,
     input,
     output,
     signal,
@@ -31,9 +33,11 @@ const COUNTER_THRESHOLD = MAX_MESSAGE_CHARS - 400;
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class InputBarComponent {
-    readonly disabled = input(false);
     readonly placeholder = input('Ask anything about Cadre AI…');
-    /** While true the send button becomes a stop button. */
+    /**
+     * While true the send button becomes a stop button. The textarea stays
+     * editable so the next question can be drafted while the answer streams.
+     */
     readonly streaming = input(false);
     readonly send = output<string>();
     readonly stop = output<void>();
@@ -41,15 +45,24 @@ export class InputBarComponent {
     protected readonly maxLength = MAX_MESSAGE_CHARS;
     protected readonly value = signal('');
     protected readonly showCounter = computed(() => this.value().length >= COUNTER_THRESHOLD);
-    protected readonly canSend = computed(() => !this.disabled() && this.value().trim().length > 0);
+    protected readonly canSend = computed(() => !this.streaming() && this.value().trim().length > 0);
 
+    private readonly document = inject(DOCUMENT);
     private readonly textarea = viewChild.required<ElementRef<HTMLTextAreaElement>>('textarea');
 
+    /**
+     * Phones and tablets: focusing the textarea opens the on-screen keyboard,
+     * which covers the answer the user is about to read.
+     */
+    private readonly isTouch =
+        this.document.defaultView?.matchMedia('(pointer: coarse)').matches ?? false;
+
     constructor() {
-        // Hand focus back as soon as the agent finishes, so a follow-up question
-        // needs no click.
-        effect(() => {
-            if (!this.disabled()) this.textarea().nativeElement.focus();
+        // On load and whenever a reply finishes, put the cursor back in the
+        // composer so a follow-up question needs no click. Runs after render, by
+        // which time the stop button (which may have held focus) is gone.
+        afterRenderEffect(() => {
+            if (!this.streaming()) this.focusIfIdle();
         });
     }
 
@@ -72,6 +85,21 @@ export class InputBarComponent {
         this.send.emit(this.value().trim());
         this.value.set('');
         this.resize();
+    }
+
+    /** Focuses the textarea unless that would take focus or a selection away from the user. */
+    private focusIfIdle(): void {
+        if (this.isTouch) return;
+
+        const el = this.textarea().nativeElement;
+        const active = this.document.activeElement;
+        // Focus the user moved elsewhere (a link, a sources panel button) stays put.
+        if (active && active !== this.document.body && active !== el) return;
+        // Focusing the textarea would clear text being selected in an answer.
+        const selection = this.document.getSelection();
+        if (selection && !selection.isCollapsed) return;
+
+        el.focus({ preventScroll: true });
     }
 
     /** Grows the textarea with its content, up to MAX_ROWS. */

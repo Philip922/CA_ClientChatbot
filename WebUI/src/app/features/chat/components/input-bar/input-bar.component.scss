@@ -35,10 +35,6 @@
     &::placeholder {
         color: var(--c-text-muted);
     }
-
-    &:disabled {
-        cursor: not-allowed;
-    }
 }
 
 .composer__count {
