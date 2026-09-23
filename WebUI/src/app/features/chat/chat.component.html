@@ -48,7 +48,11 @@
 
     <footer class="chat__footer">
         <div class="chat__content">
-            <app-input-bar [disabled]="isStreaming()" (send)="onSend($event)" />
+            <app-input-bar
+                [disabled]="isStreaming()"
+                [streaming]="isStreaming()"
+                (send)="onSend($event)"
+                (stop)="onStop()" />
             <p class="chat__disclaimer">
                 Cadre AI can make mistakes. Check important details with the team.
             </p>

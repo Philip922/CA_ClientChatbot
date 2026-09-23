@@ -9,7 +9,7 @@ import {
     signal,
     viewChild
 } from '@angular/core';
-import { LucideArrowUp } from '@lucide/angular';
+import { LucideArrowUp, LucideSquare } from '@lucide/angular';
 
 /** Lines of text shown before the textarea starts scrolling internally. */
 const MAX_ROWS = 4;
@@ -21,7 +21,7 @@ const MAX_ROWS = 4;
 @Component({
     selector: 'app-input-bar',
     standalone: true,
-    imports: [LucideArrowUp],
+    imports: [LucideArrowUp, LucideSquare],
     templateUrl: './input-bar.component.html',
     styleUrl: './input-bar.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -29,7 +29,10 @@ const MAX_ROWS = 4;
 export class InputBarComponent {
     readonly disabled = input(false);
     readonly placeholder = input('Ask anything about Cadre AI…');
+    /** While true the send button becomes a stop button. */
+    readonly streaming = input(false);
     readonly send = output<string>();
+    readonly stop = output<void>();
 
     protected readonly value = signal('');
     protected readonly canSend = computed(() => !this.disabled() && this.value().trim().length > 0);

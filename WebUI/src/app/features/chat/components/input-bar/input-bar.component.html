@@ -10,7 +10,13 @@
         (input)="onInput($event)"
         (keydown)="onKeydown($event)"></textarea>
 
-    <button type="submit" class="composer__send" [disabled]="!canSend()" aria-label="Send message">
-        <svg lucideArrowUp [size]="17"></svg>
+    @if (streaming()) {
+    <button type="button" class="composer__send" aria-label="Stop generating" (click)="stop.emit()">
+        <svg lucideSquare [size]="13" fill="currentColor" aria-hidden="true"></svg>
     </button>
+    } @else {
+    <button type="submit" class="composer__send" [disabled]="!canSend()" aria-label="Send message">
+        <svg lucideArrowUp [size]="17" aria-hidden="true"></svg>
+    </button>
+    }
 </form>

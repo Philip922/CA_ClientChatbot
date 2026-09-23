@@ -9,6 +9,21 @@ import { FeedbackRating } from '../../features/chat/models/feedback.model';
 import { Source } from '../../features/chat/models/source.model';
 import { SseDecoder, parsePayload } from './sse';
 
+/**
+ * Longest silence tolerated from the backend before the stream is abandoned.
+ * Reset on every chunk, and tool calls emit `tool_start`/`tool_end`, so this
+ * only trips on a genuinely stalled connection, not a slow answer.
+ */
+const IDLE_TIMEOUT_MS = 60_000;
+
+/** Abort reason for a stalled stream, so it can be told apart from a user abort. */
+class StreamTimeoutError extends Error {
+    constructor() {
+        super('The agent took too long to respond. Please try again.');
+        this.name = 'StreamTimeoutError';
+    }
+}
+
 /** Shape of one turn as the backend expects it in the request body. */
 interface HistoryTurn {
     role: 'user' | 'assistant';
@@ -79,6 +94,24 @@ export class ChatService {
         this.patch(messageId, message => ({ ...message, feedback: rating }));
     }
 
+    /**
+     * Cancels the reply in flight. Whatever text already arrived is kept as a
+     * complete answer; a reply stopped before its first token becomes a
+     * retryable error instead.
+     */
+    stop(): void {
+        const streaming = this._messages().find(m => m.status === 'streaming');
+        this.controller?.abort();
+        this.controller = null;
+        if (!streaming) return;
+
+        if (streaming.content.trim()) {
+            this.finish(streaming.id);
+        } else {
+            this.fail(streaming.id, new Error('Response stopped.'));
+        }
+    }
+
     clear(): void {
         this.controller?.abort();
         this.controller = null;
@@ -89,6 +122,15 @@ export class ChatService {
         this.controller?.abort();
         const controller = new AbortController();
         this.controller = controller;
+
+        // Armed before the fetch so a request that never gets response headers
+        // is caught too, then re-armed on every chunk read.
+        let idleTimer: ReturnType<typeof setTimeout> | undefined;
+        const armWatchdog = () => {
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => controller.abort(new StreamTimeoutError()), IDLE_TIMEOUT_MS);
+        };
+        armWatchdog();
 
         try {
             const response = await fetch(this.endpoint, {
@@ -111,6 +153,7 @@ export class ChatService {
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
+                armWatchdog();
                 for (const event of sse.push(decoder.decode(value, { stream: true }))) {
                     this.handleEvent(agentId, event.type, event.data);
                 }
@@ -121,9 +164,16 @@ export class ChatService {
 
             this.finish(agentId);
         } catch (error) {
+            const reason: unknown = controller.signal.reason;
+            if (reason instanceof StreamTimeoutError) {
+                this.fail(agentId, reason);
+                return;
+            }
+            // Aborted by stop(), clear() or a newer request, which own the UI state.
             if (controller.signal.aborted) return;
             this.fail(agentId, error);
         } finally {
+            clearTimeout(idleTimer);
             if (this.controller === controller) this.controller = null;
         }
     }
@@ -236,7 +286,11 @@ export class ChatService {
 
     private fail(agentId: string, error: unknown): void {
         const reason = error instanceof Error ? error.message : 'Something went wrong.';
-        this.patch(agentId, message => ({ ...message, status: 'error', error: reason }));
+        // A message that already finished (e.g. `[DONE]` arrived but the socket
+        // lingered until the watchdog fired) keeps its answer.
+        this.patch(agentId, message =>
+            message.status === 'streaming' ? { ...message, status: 'error', error: reason } : message
+        );
     }
 
     private patch(id: string, update: (message: Message) => Message): void {

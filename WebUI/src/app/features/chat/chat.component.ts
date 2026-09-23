@@ -75,6 +75,10 @@ export class ChatComponent {
         void this.chat.retry();
     }
 
+    protected onStop(): void {
+        this.chat.stop();
+    }
+
     /** Drops the conversation, aborting any reply still streaming. */
     protected onNewChat(): void {
         this.stick.set(true);
