@@ -7,10 +7,12 @@
     <div class="error" role="alert">
         <svg lucideTriangleAlert class="error__icon" [size]="15"></svg>
         <span class="error__text">{{ message().error }}</span>
+        @if (canRetry()) {
         <button type="button" class="error__retry" (click)="retry.emit()">
             <svg lucideRotateCw [size]="14"></svg>
             Try again
         </button>
+        }
     </div>
     } @else {
     <div class="bubble" [class.bubble--user]="isUser()">

@@ -38,7 +38,7 @@
             <ol class="chat__list">
                 @for (message of messages(); track message.id) {
                 <li class="chat__item">
-                    <app-message-bubble [message]="message" (retry)="onRetry()" />
+                    <app-message-bubble [message]="message" [canRetry]="$last" (retry)="onRetry()" />
                 </li>
                 }
             </ol>

@@ -27,6 +27,11 @@ import { TypingIndicatorComponent } from '../typing-indicator/typing-indicator.c
 })
 export class MessageBubbleComponent {
     readonly message = input.required<Message>();
+    /**
+     * `ChatService.retry()` only re-sends the latest failed turn, so an older
+     * error bubble shows its message without a button that would do nothing.
+     */
+    readonly canRetry = input(false);
     readonly retry = output<void>();
 
     protected readonly isUser = computed(() => this.message().role === 'user');
