@@ -41,11 +41,13 @@ export class SourcesPanelComponent {
         // The list is fixed for the lifetime of the panel (it only opens on
         // completed messages), so one measurement pass after render is enough.
         afterNextRender(() => {
+            // Only documents with an excerpt render one, so a position in
+            // excerpts() is not a source index; each element carries its own.
             const clipped = new Set<number>();
-            this.excerpts().forEach((ref, index) => {
+            for (const ref of this.excerpts()) {
                 const el = ref.nativeElement;
-                if (el.scrollHeight - el.clientHeight > 1) clipped.add(index);
-            });
+                if (el.scrollHeight - el.clientHeight > 1) clipped.add(Number(el.dataset['index']));
+            }
             this.overflowing.set(clipped);
         });
     }

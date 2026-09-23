@@ -22,7 +22,7 @@
             <div class="source__body">
                 <span class="source__label">{{ source.label }}</span>
                 @if (source.excerpt) {
-                <p #excerpt class="source__excerpt" [class.source__excerpt--clamped]="!isExpanded($index)">
+                <p #excerpt class="source__excerpt" [attr.data-index]="$index" [class.source__excerpt--clamped]="!isExpanded($index)">
                     {{ source.excerpt }}
                 </p>
                 @if (canExpand($index) || isExpanded($index)) {
