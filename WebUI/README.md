@@ -67,6 +67,18 @@ To execute unit tests with the [Karma](https://karma-runner.github.io) test runn
 ng test
 ```
 
+For a single headless run, as in CI:
+
+```bash
+npm run test:ci
+```
+
+## Linting
+
+```bash
+npm run lint
+```
+
 ## Running end-to-end tests
 
 For end-to-end (e2e) testing, run:

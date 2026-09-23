@@ -221,7 +221,8 @@ export class ChatService {
                 for (const event of sse.push(decoder.decode(value, { stream: true }))) {
                     if (this.handleEvent(agentId, event.type, event.data)) {
                         // The reply is settled; don't wait on the server to close the socket.
-                        reader.cancel().catch(() => {});
+                        // A failed cancel changes nothing the user sees, so it is ignored.
+                        reader.cancel().catch(() => undefined);
                         return;
                     }
                 }

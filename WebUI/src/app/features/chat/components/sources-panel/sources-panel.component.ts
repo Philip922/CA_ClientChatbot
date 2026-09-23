@@ -27,7 +27,8 @@ import { Source, sourceDomain } from '../../models/source.model';
 })
 export class SourcesPanelComponent {
     readonly sources = input.required<Source[]>();
-    readonly close = output<void>();
+    /** Not `close`: that is a native DOM event name and would shadow it on the host. */
+    readonly closed = output<void>();
 
     protected readonly domain = sourceDomain;
 
@@ -62,11 +63,11 @@ export class SourcesPanelComponent {
 
     protected toggle(index: number): void {
         const next = new Set(this.expanded());
-        next.has(index) ? next.delete(index) : next.add(index);
+        if (!next.delete(index)) next.add(index);
         this.expanded.set(next);
     }
 
     protected onEscape(): void {
-        this.close.emit();
+        this.closed.emit();
     }
 }
