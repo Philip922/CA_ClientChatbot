@@ -9,6 +9,7 @@ import {
     untracked,
     viewChild
 } from '@angular/core';
+import { LucideSquarePen } from '@lucide/angular';
 import { ChatService } from '../../core/services/chat.service';
 import { InputBarComponent } from './components/input-bar/input-bar.component';
 import { MessageBubbleComponent } from './components/message-bubble/message-bubble.component';
@@ -25,7 +26,7 @@ const SUGGESTED_PROMPTS = [
 @Component({
     selector: 'app-chat',
     standalone: true,
-    imports: [InputBarComponent, MessageBubbleComponent],
+    imports: [InputBarComponent, MessageBubbleComponent, LucideSquarePen],
     templateUrl: './chat.component.html',
     styleUrl: './chat.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -72,6 +73,12 @@ export class ChatComponent {
     protected onRetry(): void {
         this.stick.set(true);
         void this.chat.retry();
+    }
+
+    /** Drops the conversation, aborting any reply still streaming. */
+    protected onNewChat(): void {
+        this.stick.set(true);
+        this.chat.clear();
     }
 
     private scrollToBottom(): void {

@@ -1,10 +1,18 @@
 <div class="chat">
     <header class="chat__header">
         <span class="chat__brand">Cadre AI</span>
-        <span class="chat__status" [class.chat__status--busy]="isStreaming()" aria-live="polite">
-            <span class="chat__status-dot" aria-hidden="true"></span>
-            {{ status() }}
-        </span>
+        <div class="chat__header-end">
+            <span class="chat__status" [class.chat__status--busy]="isStreaming()" aria-live="polite">
+                <span class="chat__status-dot" aria-hidden="true"></span>
+                {{ status() }}
+            </span>
+            @if (!isEmpty()) {
+            <button type="button" class="chat__new" aria-label="New chat" (click)="onNewChat()">
+                <svg lucideSquarePen [size]="15" aria-hidden="true"></svg>
+                <span class="chat__new-label">New chat</span>
+            </button>
+            }
+        </div>
     </header>
 
     <main #scroller class="chat__scroll" (scroll)="onScroll()" tabindex="-1">

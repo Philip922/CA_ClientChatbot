@@ -36,6 +36,31 @@
     letter-spacing: -0.01em;
 }
 
+.chat__header-end {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+}
+
+.chat__new {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    height: 32px;
+    padding: 0 var(--s-3);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-pill);
+    background: var(--c-surface);
+    font-size: var(--fs-meta);
+    color: var(--c-text);
+    transition: border-color var(--t-fast), color var(--t-fast);
+
+    &:hover {
+        border-color: var(--c-accent);
+        color: var(--c-accent);
+    }
+}
+
 .chat__status {
     display: inline-flex;
     align-items: center;
@@ -145,6 +170,17 @@
 @media (max-width: 640px) {
     .chat__header {
         padding: 0 var(--s-4);
+    }
+
+    /* Icon only on phones; the aria-label still names it. */
+    .chat__new {
+        width: 32px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .chat__new-label {
+        display: none;
     }
 
     .chat__scroll {
