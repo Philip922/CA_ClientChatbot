@@ -16,11 +16,30 @@ import { SseDecoder, parsePayload } from './sse';
  */
 const IDLE_TIMEOUT_MS = 60_000;
 
+/**
+ * An error whose message is written for the user and is shown as-is. Anything
+ * else that reaches `fail()` is mapped to friendly text by `describeFailure()`.
+ */
+class ChatError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'ChatError';
+    }
+}
+
 /** Abort reason for a stalled stream, so it can be told apart from a user abort. */
-class StreamTimeoutError extends Error {
+class StreamTimeoutError extends ChatError {
     constructor() {
         super('The agent took too long to respond. Please try again.');
         this.name = 'StreamTimeoutError';
+    }
+}
+
+/** A non-2xx response from `/chat`; the status picks the message shown. */
+class HttpStatusError extends Error {
+    constructor(readonly status: number) {
+        super(`Chat request failed with HTTP ${status}`);
+        this.name = 'HttpStatusError';
     }
 }
 
@@ -108,7 +127,7 @@ export class ChatService {
         if (streaming.content.trim()) {
             this.finish(streaming.id);
         } else {
-            this.fail(streaming.id, new Error('Response stopped.'));
+            this.markError(streaming.id, 'Response stopped.');
         }
     }
 
@@ -143,7 +162,7 @@ export class ChatService {
                 signal: controller.signal
             });
 
-            if (!response.ok) throw new Error(`Request failed (${response.status})`);
+            if (!response.ok) throw new HttpStatusError(response.status);
             if (!response.body) throw new Error('Response carried no body');
 
             const reader = response.body.getReader();
@@ -169,7 +188,7 @@ export class ChatService {
             // The backend always ends with `[DONE]`, so a stream that closes without
             // one was cut off (Lambda timeout, dropped connection). Showing the partial
             // text as a finished answer would hide that from the user.
-            throw new Error('The connection dropped before the answer finished. Please try again.');
+            throw new ChatError('The connection dropped before the answer finished. Please try again.');
         } catch (error) {
             const reason: unknown = controller.signal.reason;
             if (reason instanceof StreamTimeoutError) {
@@ -207,7 +226,11 @@ export class ChatService {
                 this.attachTrailingSources(agentId, readSources(payload));
                 break;
             case 'error':
-                this.fail(agentId, new Error(readMessage(payload) ?? 'The agent hit an error.'));
+                // The backend writes this message for the user, so it is shown as-is.
+                this.fail(
+                    agentId,
+                    new ChatError(readMessage(payload) ?? 'The agent hit an error. Please try again.')
+                );
                 return true;
             case 'done':
                 this.finish(agentId);
@@ -293,12 +316,17 @@ export class ChatService {
         });
     }
 
+    /** Logs the raw error for debugging and shows the user a friendly version. */
     private fail(agentId: string, error: unknown): void {
-        const reason = error instanceof Error ? error.message : 'Something went wrong.';
+        console.error('[chat] reply failed:', error);
+        this.markError(agentId, describeFailure(error));
+    }
+
+    private markError(agentId: string, text: string): void {
         // A message that already finished (e.g. `[DONE]` arrived but the socket
         // lingered until the watchdog fired) keeps its answer.
         this.patch(agentId, message =>
-            message.status === 'streaming' ? { ...message, status: 'error', error: reason } : message
+            message.status === 'streaming' ? { ...message, status: 'error', error: text } : message
         );
     }
 
@@ -307,6 +335,31 @@ export class ChatService {
             messages.map(message => (message.id === id ? update(message) : message))
         );
     }
+}
+
+/**
+ * Turns any failure into text fit for the error bubble. Raw messages such as
+ * `Failed to fetch` or an HTTP status never reach the user; they go to the
+ * console via `fail()` instead.
+ */
+function describeFailure(error: unknown): string {
+    if (error instanceof ChatError) return error.message;
+
+    if (error instanceof HttpStatusError) {
+        if (error.status === 429) return 'Too many requests right now. Please wait a moment and try again.';
+        if (error.status === 413) return 'That message is too long. Please shorten it and try again.';
+        if (error.status >= 500) return 'The service is having trouble right now. Please try again shortly.';
+        return 'That message could not be processed. Please try again.';
+    }
+
+    if (!navigator.onLine) return 'You appear to be offline. Check your connection and try again.';
+
+    // fetch rejects with a TypeError for network failures: DNS, CORS, refused connection.
+    if (error instanceof TypeError) {
+        return 'Could not reach the server. Check your connection and try again.';
+    }
+
+    return 'Something went wrong. Please try again.';
 }
 
 function createMessage(role: MessageRole, content: string, status: Message['status']): Message {
