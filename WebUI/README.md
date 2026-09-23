@@ -36,6 +36,29 @@ ng build
 
 This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
 
+## Security headers
+
+`src/index.html` carries the Content-Security-Policy as a `<meta>` tag. Its
+`connect-src` names the Lambda Function URL from `environment.prod.ts`, so
+update both together if the API moves.
+
+The production build sets `inlineCritical: false` in `angular.json`. With it
+on, the build loads the stylesheet through an inline `onload` handler, which
+`script-src 'self'` blocks, and the global styles never apply.
+
+Some headers only work as real HTTP headers, not `<meta>`. Add them with a
+CloudFront response headers policy on the S3 behaviour:
+
+| Header | Value |
+|---|---|
+| `Content-Security-Policy` | `frame-ancestors 'none'` |
+| `X-Content-Type-Options` | `nosniff` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` |
+
+A header CSP and a `<meta>` CSP both apply, so the header one only needs
+`frame-ancestors`.
+
 ## Running unit tests
 
 To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:

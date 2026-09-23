@@ -8,6 +8,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="description" content="Ask Cadre AI about our work, industries, and approach.">
     <meta name="theme-color" content="#f2efe9">
+    <!--
+        connect-src must list the API origin: the Lambda Function URL in
+        environment.prod.ts. Change both together. style-src needs
+        'unsafe-inline' because Angular injects component styles as <style>
+        elements. Headers a <meta> CSP cannot set (frame-ancestors,
+        X-Content-Type-Options, Referrer-Policy) belong on the CloudFront
+        response headers policy. See the README.
+    -->
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://7gye7cjwtw5yx42gxcxhafluo40mwvfu.lambda-url.us-east-1.on.aws; object-src 'none'; base-uri 'self'; form-action 'self'">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
