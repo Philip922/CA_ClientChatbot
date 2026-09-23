@@ -102,6 +102,26 @@ def test_chat_rejects_an_empty_message(client):
     assert client.post("/chat", json={"message": ""}).status_code == 422
 
 
+def test_chat_rejects_an_oversized_message(client):
+    message = "x" * (app_module.MAX_MESSAGE_CHARS + 1)
+    assert client.post("/chat", json={"message": message}).status_code == 422
+
+
+def test_chat_rejects_too_many_history_turns(client):
+    history = [{"role": "user", "content": "hi"}] * (app_module.MAX_HISTORY_TURNS + 1)
+    assert client.post("/chat", json={"message": "hi", "history": history}).status_code == 422
+
+
+def test_chat_rejects_an_oversized_history_turn(client):
+    history = [{"role": "assistant", "content": "x" * (app_module.MAX_TURN_CHARS + 1)}]
+    assert client.post("/chat", json={"message": "hi", "history": history}).status_code == 422
+
+
+def test_chat_accepts_a_message_at_the_limit(client, graph):
+    graph([{"event": "on_chat_model_stream", "data": {"chunk": AIMessageChunk(content="ok")}}])
+    stream(client, message="x" * app_module.MAX_MESSAGE_CHARS)
+
+
 # --- streaming --------------------------------------------------------------
 
 

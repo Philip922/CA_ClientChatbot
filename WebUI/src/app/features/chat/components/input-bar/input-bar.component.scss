@@ -41,6 +41,18 @@
     }
 }
 
+.composer__count {
+    flex-shrink: 0;
+    align-self: center;
+    font-size: var(--fs-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--c-text-muted);
+}
+
+.composer__count--full {
+    color: var(--c-accent);
+}
+
 .composer__send {
     display: inline-flex;
     align-items: center;

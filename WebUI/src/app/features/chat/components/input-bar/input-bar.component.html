@@ -5,10 +5,20 @@
         rows="1"
         [value]="value()"
         [disabled]="disabled()"
+        [attr.maxlength]="maxLength"
         [attr.placeholder]="placeholder()"
         [attr.aria-label]="placeholder()"
         (input)="onInput($event)"
         (keydown)="onKeydown($event)"></textarea>
+
+    @if (showCounter()) {
+    <span
+        class="composer__count"
+        [class.composer__count--full]="value().length >= maxLength"
+        aria-live="polite">
+        {{ value().length }}/{{ maxLength }}
+    </span>
+    }
 
     @if (streaming()) {
     <button type="button" class="composer__send" aria-label="Stop generating" (click)="stop.emit()">

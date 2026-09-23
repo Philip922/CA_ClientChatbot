@@ -3,6 +3,12 @@ import { Source, dedupeSources } from './source.model';
 
 export type MessageRole = 'user' | 'agent';
 
+/**
+ * Longest message a user can send. Mirrors `MAX_MESSAGE_CHARS` in the backend's
+ * `app.py`, which rejects anything longer with a 422.
+ */
+export const MAX_MESSAGE_CHARS = 4000;
+
 /** `streaming` while tokens arrive, `complete` once the stream closes, `error` if it fails. */
 export type MessageStatus = 'streaming' | 'complete' | 'error';
 

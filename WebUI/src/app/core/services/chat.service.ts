@@ -43,6 +43,15 @@ class HttpStatusError extends Error {
     }
 }
 
+/**
+ * How much earlier conversation goes up with each request. Every turn sent costs
+ * model tokens, and an unbounded history eventually overflows the model's
+ * context. Both caps sit inside the backend's own limits in `app.py`, so a
+ * trimmed history is never rejected there.
+ */
+const MAX_HISTORY_TURNS = 20;
+const MAX_HISTORY_CHARS = 24_000;
+
 /** Shape of one turn as the backend expects it in the request body. */
 interface HistoryTurn {
     role: 'user' | 'assistant';
@@ -107,14 +116,32 @@ export class ChatService {
         await this.sendMessage(prompt.content);
     }
 
-    /** Conversation so far, formatted for the next request body. */
+    /**
+     * The most recent part of the conversation, formatted for the next request
+     * body: at most MAX_HISTORY_TURNS turns and MAX_HISTORY_CHARS characters.
+     */
     getHistory(): HistoryTurn[] {
-        return this._messages()
+        const turns = this._messages()
             .filter(m => m.status === 'complete' && m.content.trim().length > 0)
             .map(m => ({
                 role: m.role === 'agent' ? ('assistant' as const) : ('user' as const),
                 content: m.content
             }));
+
+        // Walk back from the newest turn, stopping at the first one that would
+        // break either cap, so what is kept is always a contiguous recent tail.
+        let start = turns.length;
+        let chars = 0;
+        while (start > 0 && turns.length - start < MAX_HISTORY_TURNS) {
+            const next = chars + turns[start - 1].content.length;
+            if (next > MAX_HISTORY_CHARS) break;
+            chars = next;
+            start--;
+        }
+
+        // Open on a user turn so the model never sees an answer without its question.
+        while (start < turns.length && turns[start].role !== 'user') start++;
+        return turns.slice(start);
     }
 
     setFeedback(messageId: string, rating: FeedbackRating | null): void {

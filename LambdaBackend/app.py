@@ -41,15 +41,23 @@ app.add_middleware(
 
 # --- request models ---------------------------------------------------------
 
+# Request size caps. Every character is paid for in model tokens, and an
+# unbounded history eventually overflows the model's context. The Angular client
+# enforces tighter limits (MAX_MESSAGE_CHARS in message.model.ts, history caps in
+# chat.service.ts), so these only reject requests that did not come from it.
+MAX_MESSAGE_CHARS = 4_000
+MAX_HISTORY_TURNS = 40
+MAX_TURN_CHARS = 32_000
+
 
 class HistoryTurn(BaseModel):
     role: Literal["user", "assistant", "agent"]
-    content: str
+    content: str = Field(max_length=MAX_TURN_CHARS)
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(min_length=1)
-    history: list[HistoryTurn] = Field(default_factory=list)
+    message: str = Field(min_length=1, max_length=MAX_MESSAGE_CHARS)
+    history: list[HistoryTurn] = Field(default_factory=list, max_length=MAX_HISTORY_TURNS)
 
 
 class FeedbackRequest(BaseModel):

@@ -10,9 +10,13 @@ import {
     viewChild
 } from '@angular/core';
 import { LucideArrowUp, LucideSquare } from '@lucide/angular';
+import { MAX_MESSAGE_CHARS } from '../../models/message.model';
 
 /** Lines of text shown before the textarea starts scrolling internally. */
 const MAX_ROWS = 4;
+
+/** The character counter only appears once the draft is this close to the limit. */
+const COUNTER_THRESHOLD = MAX_MESSAGE_CHARS - 400;
 
 /**
  * Auto-growing composer. Owns only the draft text — the message list lives in
@@ -34,7 +38,9 @@ export class InputBarComponent {
     readonly send = output<string>();
     readonly stop = output<void>();
 
+    protected readonly maxLength = MAX_MESSAGE_CHARS;
     protected readonly value = signal('');
+    protected readonly showCounter = computed(() => this.value().length >= COUNTER_THRESHOLD);
     protected readonly canSend = computed(() => !this.disabled() && this.value().trim().length > 0);
 
     private readonly textarea = viewChild.required<ElementRef<HTMLTextAreaElement>>('textarea');
