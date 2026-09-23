@@ -121,8 +121,15 @@ export class ChatService {
      * body: at most MAX_HISTORY_TURNS turns and MAX_HISTORY_CHARS characters.
      */
     getHistory(): HistoryTurn[] {
-        const turns = this._messages()
-            .filter(m => m.status === 'complete' && m.content.trim().length > 0)
+        const messages = this._messages();
+        const isAnswered = (m: Message | undefined) =>
+            m !== undefined && m.status === 'complete' && m.content.trim().length > 0;
+
+        const turns = messages
+            // A question whose reply failed is left out with it, or the next
+            // request would carry two user turns in a row and the model may
+            // answer the failed one as well.
+            .filter((m, i) => isAnswered(m) && (m.role === 'agent' || isAnswered(messages[i + 1])))
             .map(m => ({
                 role: m.role === 'agent' ? ('assistant' as const) : ('user' as const),
                 content: m.content
